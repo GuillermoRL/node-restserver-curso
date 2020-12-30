@@ -2,44 +2,52 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const _ = require('underscore');
 const Usuario = require('../models/usuario');
-const usuario = require('../models/usuario');
+
+const { verificaToken, verificaAdmin_role } = require('../middlewares/autenticacion');
 
 const app = express();
 
 // leer registros
-app.get('/usuario', (req, res) => {
+app.get('/usuario', verificaToken, (req, res) => {
     let desde = req.query.desde || 0;
     desde = Number(desde);
     let limite = req.query.limite || 5;
     limite = Number(limite);
     Usuario.find({ estado: true }, 'nombre email role estado google img')
-            // skip salta el número de registros que coloques en los paréntesis
-            .skip(desde)
-            // limit sirve para traer solo una cantidad de registros
-            .limit(limite)
-            .exec( (err, usuarios) => {
-                if(err){
-                    return res.status(400).json({
-                        ok: false,
-                        err
-                    });
-                }
-                // funcion para contar los registros
-                usuario.count({ estado: true }, (err, conteo) => {
-                    res.json({
-                        ok: true,
-                        usuarios,
-                        cuantos: conteo
-                    })
+        // skip salta el número de registros que coloques en los paréntesis
+        .skip(desde)
+        // limit sirve para traer solo una cantidad de registros
+        .limit(limite)
+        .exec((err, usuarios) => {
+            if (err) {
+                return res.status(400).json({
+                    ok: false,
+                    err
                 });
-
+            }
+            // funcion para contar los registros
+            Usuario.count({ estado: true }, (err, conteo) => {
+                res.json({
+                    ok: true,
+                    usuarios,
+                    cuantos: conteo
+                })
             });
+
+        });
 });
 
 // insertar registro
-app.post('/usuario', (req, res) => {
+app.post('/usuario', [verificaToken, verificaAdmin_role], (req, res) => {
     let body = req.body;
-    
+    if (body.role != 'ADMIN_ROLE') {
+        return res.status(400).json({
+            ok: false,
+            err: {
+                message: 'Solo administrador puede crear un registro'
+            }
+        })
+    }
     let usuario = new Usuario({
         nombre: body.nombre,
         email: body.email,
@@ -47,8 +55,8 @@ app.post('/usuario', (req, res) => {
         role: body.role
     });
 
-    usuario.save( (err, usuarioDB) => {
-        if(err) {
+    usuario.save((err, usuarioDB) => {
+        if (err) {
             return res.status(400).json({
                 ok: false,
                 err
@@ -63,12 +71,19 @@ app.post('/usuario', (req, res) => {
 });
 
 // actualizar registro
-app.put('/usuario/:id', (req, res) => {
+app.put('/usuario/:id', [verificaToken, verificaAdmin_role], (req, res) => {
     let id = req.params.id;
     let body = _.pick(req.body, ['nombre', 'email', 'img', 'role', 'estado']);
-
-    Usuario.findByIdAndUpdate( id, body, { new: true, runValidators: true }, (err, usuarioDB) => {
-        if(err){
+    if (body.role != 'ADMIN_ROLE') {
+        return res.status(400).json({
+            ok: false,
+            err: {
+                message: 'Solo administrador puede crear un registro'
+            }
+        })
+    }
+    Usuario.findByIdAndUpdate(id, body, { new: true, runValidators: true }, (err, usuarioDB) => {
+        if (err) {
             return res.status(400).json({
                 ok: false,
                 err
@@ -106,7 +121,7 @@ app.put('/usuario/:id', (req, res) => {
     });
 });*/
 // actualizar registro estado
-app.delete('/usuario/:id', (req, res) => {
+app.delete('/usuario/:id', [verificaToken, verificaAdmin_role], (req, res) => {
     let id = req.params.id;
     // let body = _.pick(req.body, ['estado']);
 
@@ -114,8 +129,8 @@ app.delete('/usuario/:id', (req, res) => {
     let cambiaEstado = {
         estado: false
     }
-    Usuario.findByIdAndUpdate( id, cambiaEstado, { new: true }, (err, usuarioDB) => {
-        if(err){
+    Usuario.findByIdAndUpdate(id, cambiaEstado, { new: true }, (err, usuarioDB) => {
+        if (err) {
             return res.status(400).json({
                 ok: false,
                 err
