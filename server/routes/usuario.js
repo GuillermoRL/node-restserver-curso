@@ -40,14 +40,6 @@ app.get('/usuario', verificaToken, (req, res) => {
 // insertar registro
 app.post('/usuario', [verificaToken, verificaAdmin_role], (req, res) => {
     let body = req.body;
-    if (body.role != 'ADMIN_ROLE') {
-        return res.status(400).json({
-            ok: false,
-            err: {
-                message: 'Solo administrador puede crear un registro'
-            }
-        })
-    }
     let usuario = new Usuario({
         nombre: body.nombre,
         email: body.email,
@@ -74,14 +66,6 @@ app.post('/usuario', [verificaToken, verificaAdmin_role], (req, res) => {
 app.put('/usuario/:id', [verificaToken, verificaAdmin_role], (req, res) => {
     let id = req.params.id;
     let body = _.pick(req.body, ['nombre', 'email', 'img', 'role', 'estado']);
-    if (body.role != 'ADMIN_ROLE') {
-        return res.status(400).json({
-            ok: false,
-            err: {
-                message: 'Solo administrador puede crear un registro'
-            }
-        })
-    }
     Usuario.findByIdAndUpdate(id, body, { new: true, runValidators: true }, (err, usuarioDB) => {
         if (err) {
             return res.status(400).json({
